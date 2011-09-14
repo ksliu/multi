@@ -1,43 +1,30 @@
 #ifndef  BIOINFO_H
 #define  BIOINFO_H
-#include <string>
-#include <vector>
 
-#include "gencle.h"
+#include <string>
 
 namespace bio
 {
-int blosum62Score(char aa_1, char aa_2);
-int cleScore(char cle_1, char cle_2);
+// amino acid: character and integer codes
+char aaIntToChar(int);
+int aaCharToInt(char);
 
-char aaConvert31(const char *resName);
+// amino acid: 1-letter and 3-letters codes
+char aaConvert31(const char *);
+const char *aaConvert13(char);
 
-const char *aaConvert13(char c);
+// distance from CB to CA atom
+double sideChainLengthInt(int);
+double sideChainLengthChar(char);
 
-// read PDB ATOM style (astral) file
-int readPDB(const char *fn, std::string &aa, double ca[][3], int capacity);
+// BLOSUM score for different amino acid pair
+int blosum62Score(char, char);
 
-// read DALI alignment file
-int readDALI(const char *fn, std::string &query, std::string & subject,
-             int ali[], int capacity);
+// CLE score for different amino acid pair
+int cleScore(char, char);
 
-// read xyz file
-//struct Decomp_xyz;
+// consensus CLE code for a given CLE set
+char cleConsensus(const std::string &s);
 }
 
-//namespace bio
-//{
-//struct Decomp_xyz
-//{
-//	Decomp_xyz(const std::string line);
-//	enum status
-//	{
-//		chain_break, new_chain, normal
-//	};
-//	status line_status;
-//	char pnum[6], chainID, aa, ss, elab, cl;
-//	double ca[3];
-//};
-//}
-
-#endif  /*BIOINFO_H*/
+#endif

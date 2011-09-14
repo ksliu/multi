@@ -1,11 +1,13 @@
 #include "protein.h"
-#include "bioinfo.h"
+#include "pdb.h"
 
 const int protein::N;
 
 protein::protein(const char *fn)
 {
     id = fn;
-    len = bio::readPDB(fn, aa, ca, N);
-    cl = bio::ca2cl(ca, len);
+    PDB pdb(fn);
+    pdb.getAA(aa);
+    pdb.getCa(ca);
+    cl = bio::ca2cl(ca.ptr(), ca.len());
 }

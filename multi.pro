@@ -7,7 +7,9 @@ HEADERS += \
     corres.h \
     bioinfo.h \
     read_conf.h \
-    protein.h
+    protein.h \
+    pdb.h \
+    dar.h
 
 SOURCES += \
     main.cpp \
@@ -17,4 +19,6 @@ SOURCES += \
     corres.cpp \
     bioinfo.cpp \
     read_conf.cpp \
-    protein.cpp
+    protein.cpp \
+    pdb.cpp \
+    dar.cpp
