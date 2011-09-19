@@ -158,15 +158,13 @@ char cleConsensus(const string &s)
 {
     static int index[CLE_NUM], score[CLE_NUM];
 
-    int count[CLE_NUM] =
-    { 0 };
-
     if (s.empty())
     {
         cerr << "The consensus input set is empty." << endl;
         exit(1);
     }
 
+    int count[CLE_NUM] = { 0 };
     for (string::size_type i = 0; i != s.size(); ++i)
     {
         int c = s[i] - 'A';

@@ -3,103 +3,54 @@
 #include <string>
 #include <vector>
 #include <cstdlib>
-#include "hfali.h"
-#include "read_conf.h"
+#include "protein.h"
+#include "multiAlign.h"
+
 using namespace std;
 
-void get_int_pair(const char *s, int *a, int *b);
-
-int main(int argc, char *argv[])
+int main()
 {
-    if (argc < 5)
+    const int N = 3;
+    string fn[N] = {"d1ufaa2.pdb", "d1z7aa1.pdb", "d2cc0a1.pdb"};
+    protein p [N];
+
+    for (int i=0; i<N; i++)
     {
-        cerr << "Usage: hfali pdb-file1 pdb-file2 pdb1-seg1,pdb1-seg2 pdb2-seg1,pdb2-seg2 [-f configure-file -l 0|1 -o rasmol-script-file]"
-             << endl;
-        cerr << "For example: hfali pdb-file1 pdb-file2 4-9,10-20 8-13,15-25 -l 0 -o rasmol-script-file "
-             << endl;
-        exit(1);
-    }
-    const char *subject = argv[1], *query = argv[2];
-    typedef int rangeT[2];
-    rangeT p11, p12, p21, p22;
-    get_int_pair(argv[3], p11, p12);
-    get_int_pair(argv[4], p21, p22);
-
-    int level = 0;
-    const char * script_file = 0;
-
-    // default: in the working directory that contains the binary executive file
-    const char *configure_file = "hform_align.conf";
-
-    if (argc > 5)
-    {
-        int i = 5;
-        while (argv[i] && argv[i + 1])
-        {
-            if (argv[i][0] == '-')
-            {
-                if (argv[i][1] == 'l')
-                    level = atoi(argv[i + 1]);
-                else if (argv[i][1] == 'o')
-                    script_file = argv[i + 1];
-                else if (argv[i][1] == 'f')
-                    configure_file = argv[i + 1];
-            }
-            i++;
-        }
+        p[i].loadFile(fn[i]);
+//        p[i].toXYZFile(fn[i]+".xyz");
     }
 
-    Para::instance(configure_file);
 
-    hfali ob(subject, query);
+    foo(p, N);
 
-    if (level == 0)
-    {
-        ob.solve(p11, p12, p21, p22, hfali::IM_once);
-    }
-    else if (level == 1)
-    {
-        ob.solve(p11, p12, p21, p22, hfali::IM_zoom_in);
-    }
-    else
-    {
-        cerr << "only support level 0 and level 1" << endl;
-        exit(1);
-    }
-    ob.output();
-
-    if (script_file)
-    {
-        ob.output_script(script_file);
-    }
-
-    Para::destorySelf();
     return 0;
 }
-void get_int_pair(const char *s, int *a, int *b)
-{
-    string p = s;
-    string::size_type comma = p.find(',');
-    if (comma == string::npos || comma + 1 == p.size())
-    {
-        cerr << "range from command line error" << endl;
-        exit(1);
-    }
-    string segment[2] =
-    { p.substr(0, comma), p.substr(comma + 1) };
 
-    int *range = a;
-    for (int i = 0; i < 2; i++)
-    {
-        string::size_type dash = segment[i].find('-');
-        if (dash == string::npos || dash + 1 == segment[i].size())
-        {
-            cerr << "range from command line error" << endl;
-            exit(1);
-        }
-        if (i == 1)
-            range = b;
-        range[0] = atoi(segment[i].substr(0, dash).c_str());
-        range[1] = atoi(segment[i].substr(dash + 1).c_str());
-    }
-}
+
+//int main(int argc, char *argv[])
+//{
+//    if (argc != 3)
+//    {
+//        cerr << "Usage: multi-ali input-file output-file" << endl;
+//        exit(1);
+//    }
+
+//    return 0;
+//}
+
+//void readInput(const std::string & fn)
+//{
+//    ifstream fs(fn.c_str());
+//    if (!fs)
+//    {
+//        cerr << "cannot open file " << fn << endl;
+//        exit(1);
+//    }
+//    string line;
+//    int n=0;
+//    while (getline(fs, line))
+//    {
+//        cout << line << endl;
+//    }
+//    fs.close();
+//}

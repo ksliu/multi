@@ -6,7 +6,11 @@
 class protein
 {
 public:
-    protein(const char *fn);
+    protein ();
+    protein (const std::string &);
+    void loadFile (const std::string &);
+    void toXYZFile(const std::string &);
+
     std::string id, aa, cl;
     Dar ca;
 

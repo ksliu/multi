@@ -9,7 +9,8 @@ HEADERS += \
     read_conf.h \
     protein.h \
     pdb.h \
-    dar.h
+    dar.h \
+    multiAlign.h
 
 SOURCES += \
     main.cpp \
@@ -21,4 +22,5 @@ SOURCES += \
     read_conf.cpp \
     protein.cpp \
     pdb.cpp \
-    dar.cpp
+    dar.cpp \
+    multiAlign.cpp
