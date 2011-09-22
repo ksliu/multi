@@ -14,51 +14,114 @@
 #include "multiAlign.h"
 using namespace std;
 
-const int SFP_LEN = 12, SFP_SCORE = 200;
+std::vector<protein *> ref;
 
-class HSFB
+HSFB::HSFB(int np): depth(1), score(0), positions(np, -1)
 {
-public:
-    HSFB(int n);
-    int depth;
-    int score;
-    std::vector<int> positions;
-    std::string consensus;
-    static  std::vector<int> length;
-    friend  ostream & operator << (ostream &os, const HSFB &) ;
-};
-std::vector<int> HSFB::length;
+
+}
 
 bool desHSFBCmp (const HSFB &a, const HSFB &b)
 {
-    if ( a.depth > b.depth )
+    if (a.depth > b.depth)
         return true;
     if (a.depth == b.depth)
         return a.score > b.score;
     return false;
 }
 
-HSFB::HSFB(int n): depth(1), score(0), positions(n, -1)
-{
-
-}
-ostream & operator<< (ostream &os, const HSFB &h)
+ostream & operator<< (ostream &os, const HSFB &hsfb)
 {
     os << "{" << endl;
-    os << "depth = " << h.depth << endl;
-    os << "score = " << h.score << endl;
-    os << "consensus = " << h.consensus << endl;
+    os << "depth = " << hsfb.depth << endl;
+    os << "score = " << hsfb.score << endl;
+    os << "consensus = " << hsfb.consensus << endl;
     os << "position = ";
-    for (std::vector<int>::const_iterator it = h.positions.begin();
-         it != h.positions.end(); ++it)
+    for (std::vector<int>::const_iterator it = hsfb.positions.begin();
+         it != hsfb.positions.end(); ++it)
     {
         os << *it << " ";
     }
     os << endl;
     os << "}";
-
     return os;
 }
+
+const int SFP_LEN = 12, SFP_SCORE = 200;
+
+void foo(protein *p, int np)
+{
+    assert(np > 2);
+    int iMin = 0;
+    for (int i=0; i<np; i++)
+    {
+        if (p[i].ca.len() < p[iMin].ca.len())
+            iMin = i;
+    }
+
+    for (int i=0; i<np; i++)
+        HSFB::ref.push_back(p + i);
+
+    HSFB::ref[0] = p + iMin;
+    HSFB::ref[iMin] = p;
+
+    list<HSFB> hData;
+    int subjectLength = HSFB::ref[0]->ca.len();
+    for (int subjectPos=0; subjectPos <= subjectLength - SFP_LEN; subjectPos++)
+    {
+        HSFB hsfb(np);
+        hsfb.positions[0] = subjectPos;
+        for (int iQuery=1; iQuery<np; iQuery++)
+        {
+            int queryPos, score;
+            if (findHSP(HSFB::ref[0]->cl, subjectPos, HSFB::ref[iQuery]->cl, queryPos, score))
+            {
+                hsfb.positions[iQuery] = queryPos;
+                hsfb.score += score;
+                hsfb.depth++;
+            }
+        }
+        if (hsfb.score > 0)
+        {
+            string candidates[SFP_LEN];
+            for (int i=0; i<SFP_LEN; i++)
+                candidates[i].push_back(HSFB::ref[0]->cl[subjectPos + i]);
+            for (int j=1; j<np; j++)
+            {
+                int pos = hsfb.positions[j];
+                if (pos != -1)
+                {
+                    for (int i=0; i<SFP_LEN; i++)
+                        candidates[i].push_back(HSFB::ref[j]->cl[pos + i]);
+                }
+            }
+            for (int i=0; i<SFP_LEN; i++)
+                hsfb.consensus.push_back(bio::cleConsensus(candidates[i]));
+            hData.push_back(hsfb);
+        }
+    }
+
+    // debug
+    // cout << "hDat.size() " << hData.size() << endl;
+    //    cout << hData[0] << endl;
+    hData.sort(desHSFBCmp);
+
+
+    ofstream ftmp1("tmp1.txt");
+    ofstream ftmp2("tmp2.txt");
+
+    for (list<HSFB>::const_iterator it = hData.begin(); it !=hData.end(); ++it)
+        ftmp1 << *it << endl;
+
+    shaveHSFBList(hData);
+
+    for (list<HSFB>::const_iterator it = hData.begin(); it !=hData.end(); ++it)
+        ftmp2 << *it << endl;
+
+    ftmp1.close();
+    ftmp2.close();
+}
+
 
 
 
@@ -69,10 +132,10 @@ bool findHSP(const string & subject, int subjectPos, const string &query, int &q
 
     int i, j, s, queryLength = query.size();
 
-    for (i = 0;  i <= queryLength - SFP_LEN; i++)
+    for (i = 0; i <= queryLength - SFP_LEN; i++)
     {
         for (s =j=0; j< SFP_LEN; j++)
-            s += bio::cleScore( subject[subjectPos + j], query[i + j]);
+            s += bio::cleScore(subject[subjectPos + j], query[i + j]);
         if (s > score)
         {
             score = s;
@@ -112,85 +175,4 @@ void shaveHSFBList(list<HSFB> & pre)
         else
             ++it;
     }
-}
-
-void foo(protein *p, int numProtein) // delete hsfb, after call
-{
-    assert(numProtein > 2);
-    int iMin = 0;
-    for (int i=0; i<numProtein; i++)
-    {
-        if ( p[i].ca.len() < p[iMin].ca.len() )
-            iMin = i;
-    }
-
-    protein **pp = new protein * [numProtein];
-    for (int i=0; i<numProtein; i++)
-        pp[i] = p+i;
-
-    pp[0] = p + iMin;
-    pp[iMin] = p;
-
-    for (int i=0; i<numProtein; i++)
-        HSFB::length.push_back(pp[i]->ca.len());
-
-
-    list<HSFB> hData;
-    int subjectLength = pp[0]->ca.len();
-    for (int subjectPos=0; subjectPos <= subjectLength - SFP_LEN; subjectPos++)
-    {
-        HSFB hsfb(numProtein);
-        hsfb.positions[0] = subjectPos;
-        for (int iQuery=1; iQuery<numProtein; iQuery++)
-        {
-            int queryPos, score;
-            if ( findHSP(pp[0]->cl, subjectPos, pp[iQuery]->cl, queryPos, score) )
-            {
-                hsfb.positions[iQuery] = queryPos;
-                hsfb.score += score;
-                hsfb.depth++;
-            }
-        }
-        if (hsfb.depth > 0)
-        {
-            string candidates[SFP_LEN];
-            for (int i=0; i<SFP_LEN; i++)
-                candidates[i].push_back(pp[0]->cl[subjectPos + i]);
-            for (int j=1; j<numProtein; j++)
-            {
-                int pos = hsfb.positions[j];
-                if (pos != -1)
-                {
-                    for (int i=0; i<SFP_LEN; i++)
-                        candidates[i].push_back(pp[j]->cl[pos + i]);
-                }
-            }
-            for (int i=0; i<SFP_LEN; i++)
-                hsfb.consensus.push_back(bio::cleConsensus(candidates[i]));
-            hData.push_back(hsfb);
-        }
-    }
-
-    // debug
-    // cout << "hDat.size() " << hData.size() << endl;
-    //    cout << hData[0] << endl;
-    hData.sort(desHSFBCmp);
-
-
-
-    ofstream ftmp1("tmp1.txt");
-    ofstream ftmp2("tmp2.txt");
-
-    for (list<HSFB>::const_iterator it = hData.begin(); it !=hData.end(); ++it)
-        ftmp1 << *it << endl;
-
-    shaveHSFBList(hData);
-
-    for (list<HSFB>::const_iterator it = hData.begin(); it !=hData.end(); ++it)
-        ftmp2 << *it << endl;
-
-    ftmp1.close();
-    ftmp2.close();
-
-    delete []pp;
 }

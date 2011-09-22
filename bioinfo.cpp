@@ -106,8 +106,7 @@ char aaConvert31(const char *resName)
     for (i = 0; i < AA_NUM; i++)
         if (!strcmp(resName, AA_LONGNAME[i]))
             return AA_SHORTNAME[i];
-    //return 'X';
-    return 'Z';
+    return 'X'; //return 'Z';
 }
 const char * aaConvert13(char c)
 {
