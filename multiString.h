@@ -1,5 +1,5 @@
-#ifndef MULTIALIGN_H
-#define MULTIALIGN_H
+#ifndef MULTISTRING_H
+#define MULTISTRING_H
 #include <string>
 #include <vector>
 #include <list>
@@ -18,14 +18,14 @@ public:
 std::ostream & operator << (std::ostream &, const HSFB &);
 bool desHSFBCmp (const HSFB &a, const HSFB &b);
 
-class MABCandidate
+class HSFBgr
 {
 public:
-    MABCandidate(const std::vector<std::string> &);
+    HSFBgr(const std::vector<std::string> &);
 
 private:
-    void rawList();
-    void shaveRedundance();
+    void generateRawList();
+    void removeRedundance();
     void saveList(const std::string &filename) const;
     bool findHSP(const std::string &subject, int subjectPos,
                  const std::string &query, int &queryPos, int & score);

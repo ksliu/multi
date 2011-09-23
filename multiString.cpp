@@ -6,7 +6,7 @@
 #include <fstream>
 #include <cstdlib>
 #include "bioinfo.h"
-#include "multiAlign.h"
+#include "multiString.h"
 using namespace std;
 
 
@@ -40,33 +40,33 @@ bool desHSFBCmp (const HSFB &a, const HSFB &b)
 }
 
 
-MABCandidate::MABCandidate(const std::vector<std::string> &inStr):ref(inStr)
+HSFBgr::HSFBgr(const std::vector<std::string> &inStr):ref(inStr)
 {
-    if(inStr.size() < 2)
+    if(ref.size() < 2)
     {
         cout << "Too few proteins" << endl;
         exit(1);
     }
 
     vector<string>::size_type ix,  min = 0;
-    for ( ; ix != inStr.size(); ++ix)
+    for (ix=0; ix != ref.size(); ++ix)
     {
-        if (inStr[ix].size() < inStr[min].size())
+        if (ref[ix].size() < ref[min].size())
             min = ix;
     }
     swap(ref[0], ref[min]);
 
-    rawList();
-    saveList("tmp1.txt");
+    generateRawList();
+    saveList("m1.txt");
 
     similarBlock.sort(desHSFBCmp);
-    saveList("tmp2.txt");
+    saveList("m2.txt");
 
-    shaveRedundance();
-    saveList("tmp3.txt");
+    removeRedundance();
+    saveList("m3.txt");
 }
 
-void MABCandidate::rawList()
+void HSFBgr::generateRawList()
 {
     int np = ref.size();
     int subjectLength = ref[0].size();
@@ -105,7 +105,7 @@ void MABCandidate::rawList()
     }
 }
 
-bool MABCandidate::findHSP(const string &subject, int subjectPos,
+bool HSFBgr::findHSP(const string &subject, int subjectPos,
                            const string &query, int &queryPos, int & score)
 {
     queryPos = -1;
@@ -126,7 +126,7 @@ bool MABCandidate::findHSP(const string &subject, int subjectPos,
     return (score >= HSFB_SCORE);
 }
 
-void MABCandidate::shaveRedundance()
+void HSFBgr::removeRedundance()
 {
     int numProtein = ref.size();
     vector< vector<int> > marker(numProtein);
@@ -155,7 +155,7 @@ void MABCandidate::shaveRedundance()
             ++it;
     }
 }
-void MABCandidate::saveList(const string &fn) const
+void HSFBgr::saveList(const string &fn) const
 {
     ofstream fout(fn.c_str());
     if (!fout)

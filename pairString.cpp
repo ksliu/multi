@@ -7,7 +7,7 @@
 #include <cmath>
 #include <cstdlib>
 #include "bioinfo.h"
-#include "pairAlign.h"
+#include "pairString.h"
 using namespace std;
 
 SFP::SFP(int a, int b, int c) : ia(a), ib(b), score(c)
@@ -31,12 +31,12 @@ bool deSFPcmp(const SFP & a, const SFP & b)
     return a.score > b.score;
 }
 
-AFPCandidate::AFPCandidate(const std::string &a, const std::string &b)
+SFPgr::SFPgr(const std::string &a, const std::string &b)
 {
     pa = a;
     pb = b;
 
-    rawList(SW, SC);
+    generateRawList(SW, SC);
     saveList("p1.txt");
 
     removeRedundance(SW / 2);
@@ -47,42 +47,19 @@ AFPCandidate::AFPCandidate(const std::string &a, const std::string &b)
     saveList("p3.txt");
 }
 
-void AFPCandidate::removeRedundance(int d)
+
+void SFPgr::generateRawList(int width, int lower_socre)
 {
-    vector<SFP>::size_type i, j, ix, nn;
-    int t;
-
-    for (nn = i = 0; i != sq.size(); i = j)
-    {
-        t = sq[i].score;
-        ix = i;
-        for (j = i + 1; j != sq.size(); ++j)
-        {
-            if (sq[j].ia - sq[i].ia >= d || (sq[i].ia - sq[i].ib != sq[j].ia - sq[j].ib))
-                break; // get proper j
-
-            if (sq[j].score > t) // find maximum in sq[*].score
-            {
-                t = sq[j].score;
-                ix = j;
-            }
-        }
-        sq[nn++] = sq[ix];
-    }
-    sq.erase(sq.begin() + nn, sq.end());
-}
-
-
-void AFPCandidate::rawList(int width, int lower_socre)
-{
-    int i, j, k, m, n, s, la = pa.size(), lb = pb.size();
+    int la = pa.size(), lb = pb.size();
     vector<int> z(min(la, lb) + 1);
 
     if (la < width || lb < width)
     {
-        cerr << "code too short!" << endl;
+        cerr << "CLE code too short!" << endl;
         exit(1);
     }
+
+     int i, j, k, m, n, s;
     // stand on 'b', shift 'a'
     // i, k ~ a, j ~ b, fixed
     for (k = 0; k <= la - width; k++)
@@ -115,7 +92,32 @@ void AFPCandidate::rawList(int width, int lower_socre)
     }
 }
 
-void AFPCandidate::saveList(const string &fn) const
+void SFPgr::removeRedundance(int d)
+{
+    vector<SFP>::size_type i, j, ix, nn;
+    int t;
+
+    for (nn = i = 0; i != sq.size(); i = j)
+    {
+        t = sq[i].score;
+        ix = i;
+        for (j = i + 1; j != sq.size(); ++j)
+        {
+            if (sq[j].ia - sq[i].ia >= d || (sq[i].ia - sq[i].ib != sq[j].ia - sq[j].ib))
+                break; // get proper j
+
+            if (sq[j].score > t) // find maximum in sq[*].score
+            {
+                t = sq[j].score;
+                ix = j;
+            }
+        }
+        sq[nn++] = sq[ix];
+    }
+    sq.erase(sq.begin() + nn, sq.end());
+}
+
+void SFPgr::saveList(const string &fn) const
 {
     ofstream fout(fn.c_str());
     if (!fout)

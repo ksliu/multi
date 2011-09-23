@@ -10,8 +10,8 @@ HEADERS += \
     protein.h \
     pdb.h \
     dar.h \
-    multiAlign.h \
-    pairAlign.h
+    pairString.h \
+    multiString.h
 
 SOURCES += \
     main.cpp \
@@ -24,5 +24,5 @@ SOURCES += \
     protein.cpp \
     pdb.cpp \
     dar.cpp \
-    multiAlign.cpp \
-    pairAlign.cpp
+    pairString.cpp \
+    multiString.cpp
