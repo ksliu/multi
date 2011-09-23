@@ -1,24 +1,33 @@
+#include <string>
+#include <vector>
+#include <list>
 #include <iostream>
 #include <iomanip>
 #include <fstream>
-#include <algorithm>
-#include <vector>
-#include <list>
-#include <cassert>
-#include <string>
-#include <cmath>
 #include <cstdlib>
-#include "hfali.h"
 #include "bioinfo.h"
-#include "read_conf.h"
 #include "multiAlign.h"
 using namespace std;
 
-std::vector<protein *> ref;
 
 HSFB::HSFB(int np): depth(1), score(0), positions(np, -1)
 {
 
+}
+
+ostream & operator<< (ostream &os, const HSFB &hsfb)
+{
+    const char * FS = " ";
+    os << "{" << FS;
+    os << "depth = " << setw(4) <<  hsfb.depth << FS;
+    os << "score = " << setw(4) << hsfb.score << FS;
+    os << "consensus = " << setw(15) << hsfb.consensus << FS;
+    os << "position = ";
+    for (std::vector<int>::const_iterator it = hsfb.positions.begin(); it != hsfb.positions.end(); ++it)
+        os << setw(6) << *it;
+    os << FS;
+    os << "}";
+    return os;
 }
 
 bool desHSFBCmp (const HSFB &a, const HSFB &b)
@@ -30,111 +39,83 @@ bool desHSFBCmp (const HSFB &a, const HSFB &b)
     return false;
 }
 
-ostream & operator<< (ostream &os, const HSFB &hsfb)
+
+MABCandidate::MABCandidate(const std::vector<std::string> &inStr):ref(inStr)
 {
-    os << "{" << endl;
-    os << "depth = " << hsfb.depth << endl;
-    os << "score = " << hsfb.score << endl;
-    os << "consensus = " << hsfb.consensus << endl;
-    os << "position = ";
-    for (std::vector<int>::const_iterator it = hsfb.positions.begin();
-         it != hsfb.positions.end(); ++it)
+    if(inStr.size() < 2)
     {
-        os << *it << " ";
+        cout << "Too few proteins" << endl;
+        exit(1);
     }
-    os << endl;
-    os << "}";
-    return os;
+
+    vector<string>::size_type ix,  min = 0;
+    for ( ; ix != inStr.size(); ++ix)
+    {
+        if (inStr[ix].size() < inStr[min].size())
+            min = ix;
+    }
+    swap(ref[0], ref[min]);
+
+    rawList();
+    saveList("tmp1.txt");
+
+    similarBlock.sort(desHSFBCmp);
+    saveList("tmp2.txt");
+
+    shaveRedundance();
+    saveList("tmp3.txt");
 }
 
-const int SFP_LEN = 12, SFP_SCORE = 200;
-
-void foo(protein *p, int np)
+void MABCandidate::rawList()
 {
-    assert(np > 2);
-    int iMin = 0;
-    for (int i=0; i<np; i++)
-    {
-        if (p[i].ca.len() < p[iMin].ca.len())
-            iMin = i;
-    }
-
-    for (int i=0; i<np; i++)
-        HSFB::ref.push_back(p + i);
-
-    HSFB::ref[0] = p + iMin;
-    HSFB::ref[iMin] = p;
-
-    list<HSFB> hData;
-    int subjectLength = HSFB::ref[0]->ca.len();
-    for (int subjectPos=0; subjectPos <= subjectLength - SFP_LEN; subjectPos++)
+    int np = ref.size();
+    int subjectLength = ref[0].size();
+    for (int subjectPos=0; subjectPos <= subjectLength - SFB_WIDTH; subjectPos++)
     {
         HSFB hsfb(np);
         hsfb.positions[0] = subjectPos;
         for (int iQuery=1; iQuery<np; iQuery++)
         {
             int queryPos, score;
-            if (findHSP(HSFB::ref[0]->cl, subjectPos, HSFB::ref[iQuery]->cl, queryPos, score))
+            if (findHSP(ref[0], subjectPos, ref[iQuery], queryPos, score))
             {
                 hsfb.positions[iQuery] = queryPos;
                 hsfb.score += score;
                 hsfb.depth++;
             }
         }
-        if (hsfb.score > 0)
+        if (hsfb.depth > 1)
         {
-            string candidates[SFP_LEN];
-            for (int i=0; i<SFP_LEN; i++)
-                candidates[i].push_back(HSFB::ref[0]->cl[subjectPos + i]);
+            string seqBlock[SFB_WIDTH];
+            for (int i=0; i<SFB_WIDTH; i++)
+                seqBlock[i].push_back(ref[0][subjectPos + i]);
             for (int j=1; j<np; j++)
             {
                 int pos = hsfb.positions[j];
                 if (pos != -1)
                 {
-                    for (int i=0; i<SFP_LEN; i++)
-                        candidates[i].push_back(HSFB::ref[j]->cl[pos + i]);
+                    for (int i=0; i<SFB_WIDTH; i++)
+                        seqBlock[i].push_back(ref[j][pos + i]);
                 }
             }
-            for (int i=0; i<SFP_LEN; i++)
-                hsfb.consensus.push_back(bio::cleConsensus(candidates[i]));
-            hData.push_back(hsfb);
+            for (int i=0; i<SFB_WIDTH; i++)
+                hsfb.consensus.push_back(bio::cleConsensus(seqBlock[i]));
+            similarBlock.push_back(hsfb);
         }
     }
-
-    // debug
-    // cout << "hDat.size() " << hData.size() << endl;
-    //    cout << hData[0] << endl;
-    hData.sort(desHSFBCmp);
-
-
-    ofstream ftmp1("tmp1.txt");
-    ofstream ftmp2("tmp2.txt");
-
-    for (list<HSFB>::const_iterator it = hData.begin(); it !=hData.end(); ++it)
-        ftmp1 << *it << endl;
-
-    shaveHSFBList(hData);
-
-    for (list<HSFB>::const_iterator it = hData.begin(); it !=hData.end(); ++it)
-        ftmp2 << *it << endl;
-
-    ftmp1.close();
-    ftmp2.close();
 }
 
-
-
-
-bool findHSP(const string & subject, int subjectPos, const string &query, int &queryPos, int & score)
+bool MABCandidate::findHSP(const string &subject, int subjectPos,
+                           const string &query, int &queryPos, int & score)
 {
     queryPos = -1;
-    score = -1000*SFP_LEN;
+    score = -1000*SFB_WIDTH;
 
     int i, j, s, queryLength = query.size();
 
-    for (i = 0; i <= queryLength - SFP_LEN; i++)
+    for (i = 0; i <= queryLength - SFB_WIDTH; i++)
     {
-        for (s =j=0; j< SFP_LEN; j++)
+        for (s=j=0; j< SFB_WIDTH; j++)
             s += bio::cleScore(subject[subjectPos + j], query[i + j]);
         if (s > score)
         {
@@ -142,27 +123,25 @@ bool findHSP(const string & subject, int subjectPos, const string &query, int &q
             queryPos = i;
         }
     }
-    return (score >= SFP_SCORE);
+    return (score >= HSFB_SCORE);
 }
-void shaveHSFBList(list<HSFB> & pre)
+
+void MABCandidate::shaveRedundance()
 {
-    int numProtein = HSFB::length.size();
+    int numProtein = ref.size();
     vector< vector<int> > marker(numProtein);
     for (int i=0; i<numProtein; i++)
-        marker[i].resize(HSFB::length[i]);
-    for (int i=0; i<numProtein; i++)
-        for (int j=0; j < HSFB::length[i]; j++)
-            marker[i][j] = 0;
+        marker[i].assign(ref[i].size(), 0);
 
-    list<HSFB>::iterator it = pre.begin();
-    while (it != pre.end())
+    list<HSFB>::iterator it = similarBlock.begin();
+    while (it != similarBlock.end())
     {
         int overlap = 0;
         for (int i=0; i<numProtein; i++)
         {
             int pos = it->positions[i];
             if (pos == -1) continue;
-            for (int j=0; j<SFP_LEN; j++)
+            for (int j=0; j<SFB_WIDTH; j++)
             {
                 if (marker[i][pos+j] == 0)
                     marker[i][pos+j] = 1;
@@ -170,9 +149,22 @@ void shaveHSFBList(list<HSFB> & pre)
                     overlap++;
             }
         }
-        if ( overlap > 0.5 * it->depth * SFP_LEN )
-            it = pre.erase(it);
+        if ( overlap > 0.5 * it->depth * SFB_WIDTH )
+            it = similarBlock.erase(it);
         else
             ++it;
     }
+}
+void MABCandidate::saveList(const string &fn) const
+{
+    ofstream fout(fn.c_str());
+    if (!fout)
+    {
+        cout << "cannot open file " <<  fn << endl;
+        exit(1);
+    }
+
+    for (list<HSFB>::const_iterator it = similarBlock.begin(); it !=similarBlock.end(); ++it)
+        fout << *it << endl;
+    fout.close();
 }
