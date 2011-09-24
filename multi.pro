@@ -1,7 +1,6 @@
 QT -= core gui
 
 HEADERS += \
-    hfali.h \
     geometry.h \
     gencle.h \
     corres.h \
@@ -15,7 +14,6 @@ HEADERS += \
 
 SOURCES += \
     main.cpp \
-    hfali.cpp \
     geometry.cpp \
     gencle.cpp \
     corres.cpp \
@@ -25,4 +23,5 @@ SOURCES += \
     pdb.cpp \
     dar.cpp \
     pairString.cpp \
-    multiString.cpp
+    multiString.cpp \
+    wk.cpp

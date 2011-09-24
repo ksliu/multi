@@ -40,21 +40,20 @@ bool desHSFBCmp (const HSFB &a, const HSFB &b)
 }
 
 
-HSFBgr::HSFBgr(const std::vector<std::string> &inStr):ref(inStr)
+HSFBgr::HSFBgr(const std::vector<std::string> &inStr)
+    :shortestIndex(0), ref(inStr)
 {
     if(ref.size() < 2)
     {
         cout << "Too few proteins" << endl;
         exit(1);
     }
-
-    vector<string>::size_type ix,  min = 0;
-    for (ix=0; ix != ref.size(); ++ix)
+    int np = ref.size();
+    for (int i=0; i < np; i++)
     {
-        if (ref[ix].size() < ref[min].size())
-            min = ix;
+        if (ref[i].size() < ref[shortestIndex].size())
+            shortestIndex = i;
     }
-    swap(ref[0], ref[min]);
 
     generateRawList();
     saveList("m1.txt");
@@ -69,15 +68,16 @@ HSFBgr::HSFBgr(const std::vector<std::string> &inStr):ref(inStr)
 void HSFBgr::generateRawList()
 {
     int np = ref.size();
-    int subjectLength = ref[0].size();
+    int subjectLength = ref[shortestIndex].size();
     for (int subjectPos=0; subjectPos <= subjectLength - SFB_WIDTH; subjectPos++)
     {
         HSFB hsfb(np);
-        hsfb.positions[0] = subjectPos;
-        for (int iQuery=1; iQuery<np; iQuery++)
+        hsfb.positions[shortestIndex] = subjectPos;
+        for (int iQuery=0; iQuery<np; iQuery++)
         {
+            if (iQuery == shortestIndex) continue;
             int queryPos, score;
-            if (findHSP(ref[0], subjectPos, ref[iQuery], queryPos, score))
+            if (findHSP(ref[shortestIndex], subjectPos, ref[iQuery], queryPos, score))
             {
                 hsfb.positions[iQuery] = queryPos;
                 hsfb.score += score;
@@ -86,27 +86,22 @@ void HSFBgr::generateRawList()
         }
         if (hsfb.depth > 1)
         {
-            string seqBlock[SFB_WIDTH];
-            for (int i=0; i<SFB_WIDTH; i++)
-                seqBlock[i].push_back(ref[0][subjectPos + i]);
-            for (int j=1; j<np; j++)
+            vector<string> seqBlock;
+            for (int j=0; j<np; j++)
             {
                 int pos = hsfb.positions[j];
                 if (pos != -1)
-                {
-                    for (int i=0; i<SFB_WIDTH; i++)
-                        seqBlock[i].push_back(ref[j][pos + i]);
-                }
+                    seqBlock.push_back(ref[j].substr(pos, SFB_WIDTH));
             }
-            for (int i=0; i<SFB_WIDTH; i++)
-                hsfb.consensus.push_back(bio::cleConsensus(seqBlock[i]));
+            blockConsensus(seqBlock, hsfb.consensus);
             similarBlock.push_back(hsfb);
         }
+
     }
 }
 
 bool HSFBgr::findHSP(const string &subject, int subjectPos,
-                           const string &query, int &queryPos, int & score)
+                     const string &query, int &queryPos, int & score)
 {
     queryPos = -1;
     score = -1000*SFB_WIDTH;
@@ -124,6 +119,35 @@ bool HSFBgr::findHSP(const string &subject, int subjectPos,
         }
     }
     return (score >= HSFB_SCORE);
+}
+void HSFBgr::blockConsensus(const vector<string> &block, string & consensus)
+{
+    if (block.size() < 2)
+    {
+        cerr << "too few input" << endl;
+        exit(1);
+    }
+    int i, row = block.size();
+    for (i=1; i<row; i++)
+    {
+        if (block[i].size() != block[0].size())
+        {
+            cerr << "length mismatch" << endl;
+            exit(1);
+        }
+    }
+
+    int j, column=block[0].size();
+    string columnStr;
+    columnStr.resize(row);
+    consensus.resize(column);
+
+    for (j=0; j<column; j++)
+    {
+        for (i=0; i<row; i++)
+            columnStr[i] = block[i][j];
+        consensus[j] = bio::cleConsensus(columnStr);
+    }
 }
 
 void HSFBgr::removeRedundance()

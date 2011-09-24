@@ -30,10 +30,13 @@ private:
     bool findHSP(const std::string &subject, int subjectPos,
                  const std::string &query, int &queryPos, int & score);
 
+    void blockConsensus(const std::vector<std::string> &, std::string &);
+
+
+    int shortestIndex;
     std::vector<std::string> ref;
     std::list<HSFB> similarBlock;
     static const int SFB_WIDTH = 12, HSFB_SCORE = 200;
 };
-
 
 #endif // MULTIALIGN_H

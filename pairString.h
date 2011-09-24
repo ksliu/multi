@@ -21,14 +21,14 @@ class SFPgr
 public:
     SFPgr(const std::string &a, const std::string &b);
 
+    std::vector<SFP> sq;
+    static const int SW = 8, SC = 100;
 private:
     void generateRawList(int width, int lower_socre);
     void removeRedundance(int);
     void saveList(const std::string &filename) const;
 
     std::string pa, pb;
-    std::vector<SFP> sq;
-    static const int SW = 8, SC = 100;
 };
 
 #endif
