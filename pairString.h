@@ -19,16 +19,21 @@ bool deSFPcmp(const SFP & a, const SFP & b);
 class SFPgr
 {
 public:
+    SFPgr();
     SFPgr(const std::string &a, const std::string &b);
+    void set(const std::string &a, const std::string &b);
 
-    std::vector<SFP> sq;
+    const std::vector<SFP> & getCandidate() const;
     static const int SW = 8, SC = 100;
+
 private:
     void generateRawList(int width, int lower_socre);
     void removeRedundance(int);
     void saveList(const std::string &filename) const;
 
+
     std::string pa, pb;
+    std::vector<SFP> sq;
 };
 
 #endif

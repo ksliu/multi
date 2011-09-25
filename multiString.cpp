@@ -39,10 +39,20 @@ bool desHSFBCmp (const HSFB &a, const HSFB &b)
     return false;
 }
 
+HSFBgr::HSFBgr()
+{
+
+}
 
 HSFBgr::HSFBgr(const std::vector<std::string> &inStr)
-    :shortestIndex(0), ref(inStr)
 {
+    set(inStr);
+}
+void HSFBgr::set(const std::vector<std::string> &inStr)
+{
+    shortestIndex = 0;
+    ref = inStr;
+
     if(ref.size() < 2)
     {
         cout << "Too few proteins" << endl;
@@ -63,8 +73,15 @@ HSFBgr::HSFBgr(const std::vector<std::string> &inStr)
 
     removeRedundance();
     saveList("m3.txt");
-}
 
+    if (similarBlock.begin() -> depth != np)
+    {
+        cout << "error: the first block is not full." << endl;
+        exit(1);
+    }
+//    cout << "shortest: "<< shortestIndex << endl;
+//    cout << "center: "<<  getBlockCenter(*similarBlock.begin()) << endl;
+}
 void HSFBgr::generateRawList()
 {
     int np = ref.size();
@@ -86,17 +103,20 @@ void HSFBgr::generateRawList()
         }
         if (hsfb.depth > 1)
         {
-            vector<string> seqBlock;
-            for (int j=0; j<np; j++)
+            string seqBlock[SFB_WIDTH];
+            for (int i=0; i<np; i++)
             {
-                int pos = hsfb.positions[j];
+                int pos = hsfb.positions[i];
                 if (pos != -1)
-                    seqBlock.push_back(ref[j].substr(pos, SFB_WIDTH));
+                {
+                    for (int j=0; j<SFB_WIDTH; j++)
+                        seqBlock[j].push_back(ref[i][pos + j]);
+                }
             }
-            blockConsensus(seqBlock, hsfb.consensus);
+            for (int i=0; i<SFB_WIDTH; i++)
+                hsfb.consensus.push_back(bio::cleConsensus(seqBlock[i]));
             similarBlock.push_back(hsfb);
         }
-
     }
 }
 
@@ -119,35 +139,6 @@ bool HSFBgr::findHSP(const string &subject, int subjectPos,
         }
     }
     return (score >= HSFB_SCORE);
-}
-void HSFBgr::blockConsensus(const vector<string> &block, string & consensus)
-{
-    if (block.size() < 2)
-    {
-        cerr << "too few input" << endl;
-        exit(1);
-    }
-    int i, row = block.size();
-    for (i=1; i<row; i++)
-    {
-        if (block[i].size() != block[0].size())
-        {
-            cerr << "length mismatch" << endl;
-            exit(1);
-        }
-    }
-
-    int j, column=block[0].size();
-    string columnStr;
-    columnStr.resize(row);
-    consensus.resize(column);
-
-    for (j=0; j<column; j++)
-    {
-        for (i=0; i<row; i++)
-            columnStr[i] = block[i][j];
-        consensus[j] = bio::cleConsensus(columnStr);
-    }
 }
 
 void HSFBgr::removeRedundance()
@@ -191,4 +182,34 @@ void HSFBgr::saveList(const string &fn) const
     for (list<HSFB>::const_iterator it = similarBlock.begin(); it !=similarBlock.end(); ++it)
         fout << *it << endl;
     fout.close();
+}
+int HSFBgr::getBlockCenter(const HSFB &hsfb) const
+{
+    int np = ref.size(), highestIndex = 0, highestScore = 0;
+    for (int i=0; i<np; i++)
+    {
+        int score = 0;
+        int pos = hsfb.positions[i];
+        if (pos != -1)
+        {
+            for (int j=0; j<SFB_WIDTH; j++)
+                score += bio::cleScore(ref[i][pos + j], hsfb.consensus[j]);
+            if (score > highestScore)
+            {
+                highestIndex = i;
+                highestScore = score;
+            }
+        }
+    }
+    return highestIndex;
+}
+const HSFB & HSFBgr::getFirstBlock() const
+{
+    if (!similarBlock.empty())
+        return  *similarBlock.begin();
+    else
+    {
+        cout << "empty HSFB list" << endl;
+        exit(1);
+    }
 }

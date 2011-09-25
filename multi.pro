@@ -10,7 +10,9 @@ HEADERS += \
     pdb.h \
     dar.h \
     pairString.h \
-    multiString.h
+    multiString.h \
+    pairAlign.h \
+    multiAlign.h
 
 SOURCES += \
     main.cpp \
@@ -24,4 +26,5 @@ SOURCES += \
     dar.cpp \
     pairString.cpp \
     multiString.cpp \
-    wk.cpp
+    pairAlign.cpp \
+    multiAlign.cpp

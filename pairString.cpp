@@ -31,7 +31,16 @@ bool deSFPcmp(const SFP & a, const SFP & b)
     return a.score > b.score;
 }
 
+SFPgr::SFPgr()
+{
+
+}
+
 SFPgr::SFPgr(const std::string &a, const std::string &b)
+{
+    set(a, b);
+}
+void SFPgr::set(const std::string &a, const std::string &b)
 {
     pa = a;
     pb = b;
@@ -46,7 +55,10 @@ SFPgr::SFPgr(const std::string &a, const std::string &b)
     sort(sq.begin(), sq.end(), deSFPcmp);
     saveList("p3.txt");
 }
-
+const std::vector<SFP> & SFPgr::getCandidate() const
+{
+    return sq;
+}
 
 void SFPgr::generateRawList(int width, int lower_socre)
 {

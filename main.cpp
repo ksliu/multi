@@ -8,6 +8,8 @@
 #include "multiString.h"
 #include "pairString.h"
 
+#include "multiAlign.h"
+
 using namespace std;
 
 int main()
@@ -26,8 +28,10 @@ int main()
     }
 
 
-    HSFBgr hsf(pcl);
-    SFPgr afp(pcl[0], pcl[1]);
+//    HSFBgr hsf(pcl);
+//    SFPgr afp(pcl[0], pcl[1]);
+    MultiAlign ma(pro, N);
+
 
     return 0;
 }

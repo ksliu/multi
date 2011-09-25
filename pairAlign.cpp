@@ -5,53 +5,46 @@
 #include "geometry.h"
 #include "protein.h"
 #include "pairString.h"
-#include "multiString.h"
+#include "pairAlign.h"
 
 using namespace std;
 
-class PairAlign
+PairAlign::PairAlign()
 {
-public:
-    PairAlign(protein *s, protein *q);
-    void update(const std::vector<int> &d);
-
-private:
-    std::vector<int> corres;
-    SFPgr similarFragments;
-    Dar subject, query, shadow;
-
-    void updateCoordinatesByCorres(); // math: matrix rotation
-    void updateCorresByCoordinates(); // CLE string: simliar pair fragment list
-
-    int getAlignedLength() const;
-    void refreshCorres(std::vector<int> & exclusionMarker, double topFraction, double absErr);
-    bool absDev(int k1, int k2, double err) const;
-    //    double rotation[3][3], translation[3];
-};
-
-PairAlign::PairAlign (protein *s, protein *q)
-    :  corres(s->ca.len(), -1), similarFragments(s->cl, q->cl)
-{
-    subject.reset(s->ca.len());
-    query.reset(q->ca.len());
-    shadow.reset(q->ca.len());
-
-    int i, j;
-    for (i=0; i<s->ca.len(); i++)
-        for (j=0; j<3; j++)
-            subject[i][j] = s->ca[i][j];
-
-    for (i=0; i<q->ca.len(); i++)
-        for (j=0; j<3; j++)
-            query[i][j] = q->ca[i][j];
 }
 
-void PairAlign::update(const vector<int> & d)
+PairAlign::PairAlign (protein *s, protein *q)
+{
+    set (s, q);
+}
+void PairAlign::set(protein *s, protein *q)
+{
+    corres.assign(s->ca.len(), -1);
+    similarFragments.set(s->cl, q->cl);
+
+    pSubject = s;
+    pQuery = q;
+
+//    subject.reset(s->ca.len());
+//    query.reset(q->ca.len());
+//    shadow.reset(q->ca.len());
+
+//    int i, j;
+//    for (i=0; i<s->ca.len(); i++)
+//        for (j=0; j<3; j++)
+//            subject[i][j] = s->ca[i][j];
+
+//    for (i=0; i<q->ca.len(); i++)
+//        for (j=0; j<3; j++)
+//            query[i][j] = q->ca[i][j];
+}
+
+void PairAlign::update(vector<int> & d)
 {
     corres = d;
     updateCoordinatesByCorres();
     updateCorresByCoordinates();
-    //    return corres;
+    d = corres;
 }
 
 void PairAlign::updateCoordinatesByCorres()
@@ -120,20 +113,22 @@ int PairAlign::getAlignedLength() const
 }
 void PairAlign::updateCorresByCoordinates()
 {
-    vector<int> scon(similarFragments.sq.size(), 0);
+    const vector<SFP> & sq = similarFragments.getCandidate();
+    vector<int> scon(sq.size(), 0);
     refreshCorres(scon, 0.8, 7.5);
 }
 
 void PairAlign::refreshCorres(vector<int> &exclusionMarker, double topFraction, double absErr)
 {
+    const vector<SFP> & sq = similarFragments.getCandidate();
     corres.assign(subject.len(), -1);
-    int part = static_cast<int> (topFraction * similarFragments.sq.size());
+    int part = static_cast<int> (topFraction * sq.size());
     int i, k, k1, k2, wrongPoints;
     for (i = 0; i < part; i++)
     {
         if (exclusionMarker[i] == 1) continue;
-        k1 = similarFragments.sq[i].ia;
-        k2 = similarFragments.sq[i].ib;
+        k1 = sq[i].ia;
+        k2 = sq[i].ib;
         for (wrongPoints = k = 0; k < SFPgr::SW; k++)
         {
             if (absDev(k1 + k, k2 + k, absErr))
@@ -159,69 +154,7 @@ bool PairAlign::absDev(int i, int j, double err) const
             && fabs(subject[i][1]- shadow[j][1]) < err
             && fabs(subject[i][2] - shadow[j][2]) < err );
 }
-class MultiAlign
-{
-public:
-    MultiAlign(protein *p, int numProtein);
-
-    void moveToAverageSubject(protein *);
-
-    void findMissingMotif();
-
-    void outputAlignResult() const;
-private:
-//    HSFBgr similarBlock;
-
-    Dar averageSubject;
-    vector < vector<int> > mab;
-    void alignPair(protein *subject, protein *query, vector<int> & coores);
-};
-
-
-MultiAlign::MultiAlign(protein *p, int numProtein)
-{
-    vector<string> pcl;
-    for (int i=0; i<numProtein; i++)
-        pcl.push_back(p[i].cl);
-
-//    HSFBgr hs(pcl);
-
-}
-
-//void foo()
+//void PairAlign::transform(double s[][3], double q[][3], double len)
 //{
-//    protein *p;
-//    int numProtein;
 
-//    vector<string> pcl;
-//    for (int i=0; i<numProtein; i++)
-//    {
-//        pcl.push_back(p[i].cl);
-//    }
-
-//    HSFBgr h(pcl);
-
-//    // recenter the Highest score block
-//    h.reCenterByHighestScore();
-
-//    int center = h.center();
-
-//    for (int loop = 0; loop < 3; loop++)
-//    {
-//        for (int i=0; i<numProtein; i++)
-//        {
-//            if ( i != center )
-//            {
-//                alignPair(p[i], p[center]);
-//            }
-//        }
-//        alignToAverage(p, numProtein);
-//    }
-//    // find missing motif
-
-////    cellRegister(p, numProtein);
-
-//    // output
-//    // 1. aligned block, coorespondence, rmsd, transformation matrix
-//    // 2. coordinates file after aligned
 //}
