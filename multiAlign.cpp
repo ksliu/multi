@@ -1,98 +1,354 @@
 #include <iostream>
+#include <iomanip>
+#include <fstream>
 #include <vector>
 #include <string>
+#include <cstdlib>
+#include <cmath>
+#include "geometry.h"
 #include "dar.h"
 #include "protein.h"
 #include "multiString.h"
 #include "multiAlign.h"
-#include "pairAlign.h"
 using namespace std;
 
-
-
-MultiAlign::MultiAlign(protein *p, int n) :pro(p), numProtein(n)
+MultiAlign::MultiAlign(protein *allPro, int numAllPro)
 {
     vector<string> pcl;
-    for (int i=0; i<numProtein; i++)
-        pcl.push_back(pro[i].cl);
-    hsfbgr.set(pcl);
 
-    multiCorres.resize(numProtein);
-    mpa = new PairAlign [numProtein];
-}
+    for (int i=0; i<numAllPro; i++)
+        pcl.push_back(allPro[i].cl);
 
-MultiAlign::~MultiAlign()
-{
-    delete []mpa;
-}
+    HSFBGenerator similarBlock(pcl);
 
+    const HSFB & hsfb = similarBlock.getFirstBlock();
 
-void MultiAlign::moveUseHighestBlock()
-{
-    const HSFB & hsfb = hsfbgr.getFirstBlock();
-    subjectIndex = hsfbgr.getBlockCenter(hsfb);
-    cout << "center: "<<  subjectIndex << endl;
-
-    for (int i=0; i<numProtein; i++)
+    if (hsfb.depth < numAllPro)
     {
-        multiCorres[i].assign(pro[subjectIndex].ca.len(), -1);
+        cout << "Warning: fist block is not full"  << endl;
+    }
+    else if (hsfb.depth > numAllPro)
+    {
+        cout << "error " << endl;
+        exit(1);
+    }
 
-        for (int j=0; j<HSFBgr::SFB_WIDTH; j++)
-            multiCorres[i][hsfb.positions[subjectIndex] + j] = hsfb.positions[i] + j;
+    np = hsfb.depth;
+    multiCorres.resize(np);
+    multiSFP.resize(np);
 
+    int subjectIndexInAll = similarBlock.getBlockCenter(hsfb);
+
+    for (int i=0, ni=0; i<numAllPro; i++)
+    {
+        if (hsfb.position[i] != -1)
+        {
+            pro.push_back(allPro + i);
+
+            multiCorres[ni].assign(allPro[subjectIndexInAll].ca.len(), -1);
+            for (int j=0; j<similarBlock.SFB_WIDTH; j++)
+                multiCorres[ni][hsfb.position[subjectIndexInAll] + j] = hsfb.position[i] + j;
+
+            if (i == subjectIndexInAll)
+                subjectIndex = ni;
+            else
+                multiSFP[ni].set(allPro[subjectIndexInAll].cl, allPro[i].cl);
+
+            ni++;
+        }
+        else
+        {
+            cout << "throw protein: " << i << endl;
+        }
+    }
+    averageSubject.reset(allPro[subjectIndexInAll].ca.len());
+    moveToCenter();
+}
+
+void MultiAlign::moveToCenter()
+{
+    centers.reset(np);
+    int i, j, k;
+    for (k=0; k<np; k++)
+    {
+        for (j=0; j<3; j++) centers[k][j] = 0;
+
+        for (i=0; i<pro[k]->ca.len(); i++)
+            for (j=0; j<3; j++)
+                centers[k][j] += pro[k]->ca[i][j];
+
+        for (j=0; j<3; j++) centers[k][j] /= pro[k]->ca.len();
+
+        for (i=0; i<pro[k]->ca.len(); i++)
+            for (j=0; j<3; j++)
+                pro[k]->ca[i][j] -= centers[k][j];
+    }
+}
+
+
+void MultiAlign::run()
+{
+    int i;
+    for (i=0; i<np; i++)
+    {
         if (i != subjectIndex)
         {
-            mpa[i].set(pro + subjectIndex, pro + i);
-            mpa[i].update(multiCorres[i]);
+            transToSubject(i);
+            fillCorresByCLE(i);
         }
+    }
+    refreshSubjectCorres();
+
+    for (int loop = 0; loop <0; loop++)
+    {
+        updateAverageSubject();
+        for (i=0; i<np; i++)
+        {
+            transToAverage(i);
+        }
+        for (i=0; i<np; i++)
+        {
+            if(i != subjectIndex)
+                fillCorresByCLE(i);
+        }
+        refreshSubjectCorres();
+    }
+
+    updateAverageSubject();
+    for (i=0; i<np; i++)
+    {
+        transToAverage(i);
+    }
+    for (i=0; i<np; i++)
+    {
+        if(i != subjectIndex)
+            tuneCorresByCLE(i);
+    }
+    refreshSubjectCorres();
+
+    findMissingMotif();
+
+}
+void MultiAlign::transToSubject(int index)
+{
+    ddtransform(pro[subjectIndex]->ca, pro[index]->ca, multiCorres[index]);
+}
+void MultiAlign::transToAverage(int index)
+{
+    ddtransform(averageSubject, pro[index]->ca, multiCorres[index]);
+}
+
+void MultiAlign::fillCorresByCLE(int index)
+{
+    vector<int> & corres = multiCorres[index];
+    const vector<SFP> & sq = multiSFP[index].getCandidate();
+    corres.assign(corres.size(), -1);
+
+    int part = sq.size();
+
+    for (int i = 0; i < part; i++)
+    {
+        int s = sq[i].ia;
+        int q = sq[i].ib;
+        int wrongPoints = 0;
+        for (int k = 0; k < SFPGenerator::SW; k++, s++, q++)
+        {
+            if (absAviable(index, s, q))
+            {
+                corres[s] = q;
+            }
+            else
+            {
+                wrongPoints++;
+                if (wrongPoints > SFPGenerator::SW / 2)
+                    break;
+            }
+        }
+    }
+}
+
+
+void MultiAlign::tuneCorresByCLE(int index)
+{
+    vector<int> & corres = multiCorres[index];
+    const vector<SFP> & sq = multiSFP[index].getCandidate();
+    corres.assign(corres.size(), -1);
+
+    int part = sq.size();
+
+    //    for (int i = 0; i < part; i++)
+    //    {
+    //        int s = sq[i].ia;
+    //        int q = sq[i].ib;
+    //        int wrongPoints = 0;
+    //        for (int k = 0; k < SFPGenerator::SW; k++, s++, q++)
+    //        {
+    //            if (disAviable(index, s, q))
+    //            {
+    //                corres[s] = q ;
+    //            }
+    //            else
+    //            {
+    //                wrongPoints++;
+    //                if (wrongPoints > SFPGenerator::SW / 2)
+    //                    break;
+    //            }
+    //        }
+    //    }
+
+    for (int i = 0; i < part; i++)
+    {
+        int s = sq[i].ia ;
+        int q = sq[i].ib ;
+        for (int k = 0; k < SFPGenerator::SW; k++, s++, q++)
+        {
+            if (disAviable(index, s, q))
+            {
+                corres[s] = q;
+            }
+        }
+    }
+
+    const double  disErr = 5.0 * 5.0;
+
+    int i, j;
+
+    for (i = 1; i <  pro[subjectIndex]->ca.len(); i++)
+    {
+        if (corres[i - 1] != -1 && corres[i] == -1)
+        {
+            j = corres[i - 1] + 1;
+            if (disDev(pro[subjectIndex]->ca[i], pro[index]->ca[j], disErr))
+                corres[i] = j;
+        }
+    }
+
+    for (i =  pro[subjectIndex]->ca.len() - 1; i > 0; i--)
+    {
+        if (corres[i - 1] == -1 && corres[i] != -1)
+        {
+            j = corres[i];
+            if (disDev(pro[subjectIndex]->ca[i - 1], pro[index]->ca[j - 1], disErr))
+                corres[i - 1] = j - 1;
+        }
+    }
+}
+
+void MultiAlign::refreshSubjectCorres()
+{
+    for (int i=0; i<pro[subjectIndex]->ca.len(); i++)
+    {
+        int depth = 0;
+        for (int k=0; k<np; k++)
+        {
+            if (k != subjectIndex && multiCorres[k][i] != -1)
+                depth++;
+        }
+        if (depth > 0)
+            multiCorres[subjectIndex][i] = i;
+        else
+            multiCorres[subjectIndex][i] = -1;
     }
 }
 
 void MultiAlign::updateAverageSubject()
 {
-    int n = pro[subjectIndex].ca.len();
-    averageSubject.reset(n);
-    int i, j, k;
-    for (i=0; i<n; i++)
-        for (j=0; j<3; j++)
-            averageSubject[i][j] = pro[subjectIndex][i][j];
-
-    std::vector<int> abDepth(n, 0);
-    for (k=0; k<numProtein; k++)
+    if (averageSubject.len() != pro[subjectIndex]->ca.len())
     {
-        if (k != subjectIndex) continue;
-        for (i=0; i<n; i++)
+        cout << "length mismatch" << endl;
+        exit(1);
+    }
+
+    int i, j, k;
+    for (i=0; i<averageSubject.len(); i++)
+    {
+        for (j=0; j<3; j++)
+            averageSubject[i][j] = 0;
+
+        int depth = 0;
+        for (k=0; k<np; k++)
         {
             int p = multiCorres[k][i];
             if (p != -1)
             {
                 for (j=0; j<3; j++)
-                    averageSubject[i][j] += pro[k][p][j];
-                abDepth[i]++;
+                    averageSubject[i][j] += pro[k]->ca[p][j];
+                depth++;
             }
         }
-    }
-    for (i=0; i<n; i++)
-    {
-        if (abDepth[i] > 0)
+        if (depth > 0)
         {
             for (j=0; j<3; j++)
-                averageSubject[i][j] /= abDepth[i];
+                averageSubject[i][j] /= depth;
         }
     }
 }
 
-void MultiAlign::allMoveToAverageSubject()
+bool MultiAlign::absAviable(int index, int s, int q)
 {
-    int i, j;
-
-    for (i=0; i<numProtein; i++)
-    {
-        ddtransform(averageSubject, pro[i].ca, multiCorres[i]);
-    }
+    static const  double absErr = 7.5;
+    return
+            multiCorres[index][s] == -1
+            && absDev(pro[subjectIndex]->ca[s], pro[index]->ca[q], absErr)
+            && colinear(multiCorres[index], s, q);
+}
+bool MultiAlign::disAviable(int index, int s, int q)
+{
+    static const  double disErr = 5.0 * 5.0;
+    return
+            multiCorres[index][s] == -1
+            && disDev(pro[subjectIndex]->ca[s], pro[index]->ca[q], disErr)
+            && colinear(multiCorres[index], s, q);
+}
+bool MultiAlign::absDev(const double p[], const double q[], double err)
+{
+    return (fabs(p[0] - q[0]) < err
+            && fabs(p[1]- q[1]) < err
+            && fabs(p[2] - q[2]) < err );
 }
 
-void MultiAlign::ddtransform(const Dar &subject, Dar &query, vector<int> &corres)
+bool MultiAlign::disDev(const double p[], const double q[], double err)
+{
+    double s = 0;
+    for (int i=0; i<3; i++)
+        s += (p[i] - q[i]) * (p[i] - q[i]);
+    return  s < err;
+}
+bool MultiAlign::colinear(const vector<int> &corres, int s, int q)
+{
+    int i, sublen = corres.size();
+    //    for (i = k1 + 1; i < sublen; i++)
+    //        if (corres[i] != -1 && k2 > corres[i])
+    //            return false;
+
+    //    for (i = k1 - 1; i >= 0; i--)
+    //        if (corres[i] != -1)
+    //            return k2 > corres[i];
+
+    //    return true;
+    for (i=0; i<s; i++)
+    {
+        int p = corres[i];
+        if (p != -1)
+        {
+            if ( p >= q )
+                return false;
+        }
+    }
+    for (i=s+1; i<sublen; i++)
+    {
+        int p = corres[i];
+        if (p != -1)
+        {
+            if ( p <= q )
+                return false;
+        }
+    }
+    return true;
+}
+
+
+void MultiAlign::ddtransform(const Dar &subject, Dar &query, const vector<int> &corres)
 {
     int sublen = corres.size();
     if ( subject.len() != sublen )
@@ -113,15 +369,16 @@ void MultiAlign::ddtransform(const Dar &subject, Dar &query, vector<int> &corres
     int i, j, k, n;
     for (n=i=0; i<subject.len(); i++)
     {
-        if (corres[i] != -1)
+        k = corres[i];
+        if (k!= -1)
         {
             for (j=0; j<3; j++)
             {
                 subjectAliged[n][j] = subject[i][j];
-                queryAligned[n][j] = query[i][j];
+                queryAligned[n][j] = query[k][j];
 
                 subjectAligedCenter[j] += subject[i][j];
-                queryAlignedCenter[j] += query[i][j];
+                queryAlignedCenter[j] += query[k][j];
             }
             n++;
         }
@@ -132,6 +389,7 @@ void MultiAlign::ddtransform(const Dar &subject, Dar &query, vector<int> &corres
         subjectAligedCenter[j] /= numAligned;
         queryAlignedCenter[j] /= numAligned;
     }
+
     for (i=0; i<numAligned; i++)
     {
         for ( j=0; j<3; j++)
@@ -141,20 +399,11 @@ void MultiAlign::ddtransform(const Dar &subject, Dar &query, vector<int> &corres
         }
     }
 
+
     double rotation[3][3];
     geom::kabsch(subjectAliged.ptr(), queryAligned.ptr(), numAligned, rotation);
 
     //  A - A_c ~ R*( B - B_c )   =>   A ~  R*B + A_c - R*B_c
-    Dar shadow(query.len());
-    for (k = 0; k < query.len(); k++)
-    {
-        for (i = 0; i < 3; i++)
-        {
-            shadow[k][i] = 0;
-            for (j = 0; j < 3; j++)
-                shadow[k][i] += rotation[i][j] * query[k][j];
-        }
-    }
     double shift[3];
     for (i = 0; i < 3; i++)
     {
@@ -163,47 +412,48 @@ void MultiAlign::ddtransform(const Dar &subject, Dar &query, vector<int> &corres
             shift[i] += rotation[i][j] * queryAlignedCenter[j];
         shift[i] = subjectAligedCenter[i] - shift[i];
     }
+
+    double rq [3];
     for (k = 0; k < query.len(); k++)
-        for (j = 0; j < 3; j++)
-            query[k][j] = shadow[k][j] + shift[j];
+    {
+        for (i = 0; i < 3; i++)
+        {
+            rq[i] = 0;
+            for (j = 0; j < 3; j++)
+                rq[i] += rotation[i][j] * query[k][j];
+        }
+        for (i = 0; i < 3; i++)
+            query[k][i] = rq[i] + shift[i];
+    }
+}
+
+void MultiAlign::outputAlignResult(const std::string & fn) const
+{
+    // output
+    // 1. aligned block, coorespondence, rmsd, transformation matrix
+    // 2. coordinates file after aligned
+    ofstream fout(fn.c_str());
+    if (fout.fail())
+    {
+        cout << "cannot open file " << fn << endl;
+        exit(1);
+    }
+    fout << "subject protein: " << subjectIndex << endl;
+
+    for (int j=0; j < pro[subjectIndex]->ca.len(); j++)
+    {
+        for (int i=0; i<np; i++)
+            fout << setw(5) << multiCorres[i][j];
+        fout << endl;
+    }
+
+    fout.close();
+}
+
+void MultiAlign::findMissingMotif()
+{
+    // cellRegister
+
 }
 
 
-
-//void foo()
-//{
-//    protein *p;
-//    int numProtein;
-
-//    vector<string> pcl;
-//    for (int i=0; i<numProtein; i++)
-//    {
-//        pcl.push_back(p[i].cl);
-//    }
-
-//    HSFBgr h(pcl);
-
-//    // recenter the Highest score block
-//    h.reCenterByHighestScore();
-
-//    int center = h.center();
-
-//    for (int loop = 0; loop < 3; loop++)
-//    {
-//        for (int i=0; i<numProtein; i++)
-//        {
-//            if ( i != center )
-//            {
-//                alignPair(p[i], p[center]);
-//            }
-//        }
-//        alignToAverage(p, numProtein);
-//    }
-//    // find missing motif
-
-////    cellRegister(p, numProtein);
-
-//    // output
-//    // 1. aligned block, coorespondence, rmsd, transformation matrix
-//    // 2. coordinates file after aligned
-//}

@@ -15,22 +15,27 @@ using namespace std;
 int main()
 {
     const int N = 3;
-    string pdbFiles[N] = {"d1ufaa2.pdb", "d1z7aa1.pdb", "d2cc0a1.pdb"};
-    //    string xyzFiles[N] = {"d1ufaa2.xyz", "d1z7aa1.xyz", "d2cc0a1.xyz"};
+//    string pdbFiles[N] = {"1BAB.pdb", "1HLB.pdb", "1HLM.pdb"};
+    string pdbFiles[N] = { "1HLB.pdb", "1HLM.pdb", "1BAB.pdb"};
+//    string xyzFiles[N] = {"1BAB.xyz", "1HLB.xyz", "1HLM.xyz"};
+
     protein pro[N];
     vector<string>pcl;
 
     for (int i=0; i<N; i++)
     {
         pro[i].loadFile(pdbFiles[i]);
-        // p[i].toXYZFile(xyzFiles[i]);
+        //        pro[i].toXYZFile(xyzFiles[i]);
         pcl.push_back(pro[i].cl);
     }
 
-
-//    HSFBgr hsf(pcl);
-//    SFPgr afp(pcl[0], pcl[1]);
     MultiAlign ma(pro, N);
+
+    ma.outputAlignResult("multiAlign1.txt");
+
+    ma.run();
+
+    ma.outputAlignResult("multiAlign2.txt");
 
 
     return 0;

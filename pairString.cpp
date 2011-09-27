@@ -31,16 +31,16 @@ bool deSFPcmp(const SFP & a, const SFP & b)
     return a.score > b.score;
 }
 
-SFPgr::SFPgr()
+SFPGenerator::SFPGenerator()
 {
 
 }
 
-SFPgr::SFPgr(const std::string &a, const std::string &b)
+SFPGenerator::SFPGenerator(const std::string &a, const std::string &b)
 {
     set(a, b);
 }
-void SFPgr::set(const std::string &a, const std::string &b)
+void SFPGenerator::set(const std::string &a, const std::string &b)
 {
     pa = a;
     pb = b;
@@ -55,12 +55,12 @@ void SFPgr::set(const std::string &a, const std::string &b)
     sort(sq.begin(), sq.end(), deSFPcmp);
     saveList("p3.txt");
 }
-const std::vector<SFP> & SFPgr::getCandidate() const
+const std::vector<SFP> & SFPGenerator::getCandidate() const
 {
     return sq;
 }
 
-void SFPgr::generateRawList(int width, int lower_socre)
+void SFPGenerator::generateRawList(int width, int lower_socre)
 {
     int la = pa.size(), lb = pb.size();
     vector<int> z(min(la, lb) + 1);
@@ -104,7 +104,7 @@ void SFPgr::generateRawList(int width, int lower_socre)
     }
 }
 
-void SFPgr::removeRedundance(int d)
+void SFPGenerator::removeRedundance(int d)
 {
     vector<SFP>::size_type i, j, ix, nn;
     int t;
@@ -129,7 +129,7 @@ void SFPgr::removeRedundance(int d)
     sq.erase(sq.begin() + nn, sq.end());
 }
 
-void SFPgr::saveList(const string &fn) const
+void SFPGenerator::saveList(const string &fn) const
 {
     ofstream fout(fn.c_str());
     if (!fout)

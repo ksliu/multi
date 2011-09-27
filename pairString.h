@@ -16,11 +16,11 @@ std::ostream & operator << (std::ostream &, const SFP &);
 
 bool deSFPcmp(const SFP & a, const SFP & b);
 
-class SFPgr
+class SFPGenerator
 {
 public:
-    SFPgr();
-    SFPgr(const std::string &a, const std::string &b);
+    SFPGenerator();
+    SFPGenerator(const std::string &a, const std::string &b);
     void set(const std::string &a, const std::string &b);
 
     const std::vector<SFP> & getCandidate() const;

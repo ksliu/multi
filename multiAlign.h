@@ -6,36 +6,50 @@
 #include "dar.h"
 #include "protein.h"
 #include "multiString.h"
-#include "pairAlign.h"
+#include "pairString.h"
 
 class MultiAlign
 {
 public:
-    MultiAlign(protein *p, int n);
+    MultiAlign(protein *, int);
 
-    void moveUseHighestBlock();
+    //    void findMissingMotif();
 
-    void allMoveToAverageSubject();
+    void run();
+    void outputAlignResult(const std::string & fn) const;
+
+private:
+    std::vector<protein *> pro;
+    int np, subjectIndex;
+
+    std::vector < std::vector<int> > multiCorres;
+    std::vector <  SFPGenerator >  multiSFP;
+
+    Dar averageSubject, centers;
+
+
+
+    void moveToCenter();
+    void updateAverageSubject();
+
+    void transToSubject(int index);
+    void transToAverage(int index);
+
+    void fillCorresByCLE(int index);
+    void tuneCorresByCLE(int index);
+
+    void moveToAverageSubject();
+    void refreshSubjectCorres();
 
     void findMissingMotif();
 
-    void updateAverageSubject();
+    bool absAviable(int index, int s, int q);
+    bool disAviable(int index, int s, int q);
 
-    void outputAlignResult() const;
-
-
-    ~MultiAlign();
-private:
-    protein *pro;
-    int numProtein, subjectIndex;
-
-    Dar averageSubject;
-    HSFBgr hsfbgr;
-    std::vector < std::vector<int> > multiCorres;
-
-    PairAlign *mpa;
-
-    void ddtransform(const Dar &subject, Dar &query, std::vector<int> &corres);
-
+    static void ddtransform(const Dar &subject, Dar &query, const std::vector<int> &corres);
+    static bool absDev(const double p[], const double q[], double err);
+    static bool disDev(const double p[], const double q[], double err);
+    static bool colinear(const std::vector<int> &corres, int k1, int k2);
 };
+
 #endif // MULTIALIGN_H

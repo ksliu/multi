@@ -12,18 +12,18 @@ public:
     int depth;
     int score;
     std::string consensus;
-    std::vector<int> positions;
+    std::vector<int> position;
 };
 
 std::ostream & operator << (std::ostream &, const HSFB &);
 bool desHSFBCmp (const HSFB &a, const HSFB &b);
 
-class HSFBgr
+class HSFBGenerator
 {
 public:
-    HSFBgr();
+    HSFBGenerator();
 
-    HSFBgr(const std::vector<std::string> &);
+    HSFBGenerator(const std::vector<std::string> &);
     void set(const std::vector<std::string> &);
     const HSFB & getFirstBlock() const;
     int getBlockCenter(const HSFB &) const;
@@ -41,7 +41,7 @@ private:
 
     int shortestIndex;
     std::vector<std::string> ref;
-    std::list<HSFB> similarBlock;
+    std::list<HSFB> block;
 
 };
 

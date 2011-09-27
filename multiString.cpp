@@ -10,7 +10,7 @@
 using namespace std;
 
 
-HSFB::HSFB(int np): depth(1), score(0), positions(np, -1)
+HSFB::HSFB(int np): depth(1), score(0), position(np, -1)
 {
 
 }
@@ -23,7 +23,7 @@ ostream & operator<< (ostream &os, const HSFB &hsfb)
     os << "score = " << setw(4) << hsfb.score << FS;
     os << "consensus = " << setw(15) << hsfb.consensus << FS;
     os << "position = ";
-    for (std::vector<int>::const_iterator it = hsfb.positions.begin(); it != hsfb.positions.end(); ++it)
+    for (std::vector<int>::const_iterator it = hsfb.position.begin(); it != hsfb.position.end(); ++it)
         os << setw(6) << *it;
     os << FS;
     os << "}";
@@ -39,16 +39,16 @@ bool desHSFBCmp (const HSFB &a, const HSFB &b)
     return false;
 }
 
-HSFBgr::HSFBgr()
+HSFBGenerator::HSFBGenerator()
 {
 
 }
 
-HSFBgr::HSFBgr(const std::vector<std::string> &inStr)
+HSFBGenerator::HSFBGenerator(const std::vector<std::string> &inStr)
 {
     set(inStr);
 }
-void HSFBgr::set(const std::vector<std::string> &inStr)
+void HSFBGenerator::set(const std::vector<std::string> &inStr)
 {
     shortestIndex = 0;
     ref = inStr;
@@ -68,13 +68,13 @@ void HSFBgr::set(const std::vector<std::string> &inStr)
     generateRawList();
     saveList("m1.txt");
 
-    similarBlock.sort(desHSFBCmp);
+    block.sort(desHSFBCmp);
     saveList("m2.txt");
 
     removeRedundance();
     saveList("m3.txt");
 
-    if (similarBlock.begin() -> depth != np)
+    if (block.begin() -> depth != np)
     {
         cout << "error: the first block is not full." << endl;
         exit(1);
@@ -82,21 +82,21 @@ void HSFBgr::set(const std::vector<std::string> &inStr)
 //    cout << "shortest: "<< shortestIndex << endl;
 //    cout << "center: "<<  getBlockCenter(*similarBlock.begin()) << endl;
 }
-void HSFBgr::generateRawList()
+void HSFBGenerator::generateRawList()
 {
     int np = ref.size();
     int subjectLength = ref[shortestIndex].size();
     for (int subjectPos=0; subjectPos <= subjectLength - SFB_WIDTH; subjectPos++)
     {
         HSFB hsfb(np);
-        hsfb.positions[shortestIndex] = subjectPos;
+        hsfb.position[shortestIndex] = subjectPos;
         for (int iQuery=0; iQuery<np; iQuery++)
         {
             if (iQuery == shortestIndex) continue;
             int queryPos, score;
             if (findHSP(ref[shortestIndex], subjectPos, ref[iQuery], queryPos, score))
             {
-                hsfb.positions[iQuery] = queryPos;
+                hsfb.position[iQuery] = queryPos;
                 hsfb.score += score;
                 hsfb.depth++;
             }
@@ -106,7 +106,7 @@ void HSFBgr::generateRawList()
             string seqBlock[SFB_WIDTH];
             for (int i=0; i<np; i++)
             {
-                int pos = hsfb.positions[i];
+                int pos = hsfb.position[i];
                 if (pos != -1)
                 {
                     for (int j=0; j<SFB_WIDTH; j++)
@@ -115,12 +115,12 @@ void HSFBgr::generateRawList()
             }
             for (int i=0; i<SFB_WIDTH; i++)
                 hsfb.consensus.push_back(bio::cleConsensus(seqBlock[i]));
-            similarBlock.push_back(hsfb);
+            block.push_back(hsfb);
         }
     }
 }
 
-bool HSFBgr::findHSP(const string &subject, int subjectPos,
+bool HSFBGenerator::findHSP(const string &subject, int subjectPos,
                      const string &query, int &queryPos, int & score)
 {
     queryPos = -1;
@@ -141,20 +141,20 @@ bool HSFBgr::findHSP(const string &subject, int subjectPos,
     return (score >= HSFB_SCORE);
 }
 
-void HSFBgr::removeRedundance()
+void HSFBGenerator::removeRedundance()
 {
     int numProtein = ref.size();
     vector< vector<int> > marker(numProtein);
     for (int i=0; i<numProtein; i++)
         marker[i].assign(ref[i].size(), 0);
 
-    list<HSFB>::iterator it = similarBlock.begin();
-    while (it != similarBlock.end())
+    std::list<HSFB>::iterator it = block.begin();
+    while (it != block.end())
     {
         int overlap = 0;
         for (int i=0; i<numProtein; i++)
         {
-            int pos = it->positions[i];
+            int pos = it->position[i];
             if (pos == -1) continue;
             for (int j=0; j<SFB_WIDTH; j++)
             {
@@ -165,12 +165,12 @@ void HSFBgr::removeRedundance()
             }
         }
         if ( overlap > 0.5 * it->depth * SFB_WIDTH )
-            it = similarBlock.erase(it);
+            it = block.erase(it);
         else
             ++it;
     }
 }
-void HSFBgr::saveList(const string &fn) const
+void HSFBGenerator::saveList(const string &fn) const
 {
     ofstream fout(fn.c_str());
     if (!fout)
@@ -179,17 +179,17 @@ void HSFBgr::saveList(const string &fn) const
         exit(1);
     }
 
-    for (list<HSFB>::const_iterator it = similarBlock.begin(); it !=similarBlock.end(); ++it)
+    for (list<HSFB>::const_iterator it = block.begin(); it !=block.end(); ++it)
         fout << *it << endl;
     fout.close();
 }
-int HSFBgr::getBlockCenter(const HSFB &hsfb) const
+int HSFBGenerator::getBlockCenter(const HSFB &hsfb) const
 {
     int np = ref.size(), highestIndex = 0, highestScore = 0;
     for (int i=0; i<np; i++)
     {
         int score = 0;
-        int pos = hsfb.positions[i];
+        int pos = hsfb.position[i];
         if (pos != -1)
         {
             for (int j=0; j<SFB_WIDTH; j++)
@@ -203,10 +203,10 @@ int HSFBgr::getBlockCenter(const HSFB &hsfb) const
     }
     return highestIndex;
 }
-const HSFB & HSFBgr::getFirstBlock() const
+const HSFB & HSFBGenerator::getFirstBlock() const
 {
-    if (!similarBlock.empty())
-        return  *similarBlock.begin();
+    if (!block.empty())
+        return  *block.begin();
     else
     {
         cout << "empty HSFB list" << endl;
