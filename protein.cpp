@@ -6,6 +6,7 @@
 #include "protein.h"
 #include "pdb.h"
 #include "gencle.h"
+#include "bioinfo.h"
 protein::protein()
 {
 
@@ -43,4 +44,22 @@ void protein::toXYZFile(const std::string &fn)
         fs << endl;
     }
     fs.close();
+}
+void protein::genFakePDB(char chain, int startAtomNo, std::ostream &os)
+{
+    using std::setw;
+    using std::endl;
+    for (int i=0; i< ca.len(); i++)
+    {
+        os << "ATOM  " << setw(5) << startAtomNo + i << " " << " CA " << " " << setw(3)
+           << bio::aaConvert13(aa[i]) << " " << chain << setw(4) << i
+           << " " << "   ";
+        for (int j = 0; j < 3; j++)
+            os << setw(8) << ca[i][j];
+        os << endl;
+    }
+    os << "TER   " << endl;
+    for (int i = 1; i < ca.len() ; i++)
+        os << "CONECT" << setw(5) << startAtomNo + i - 1 << setw(5) << startAtomNo +i << endl;
+
 }

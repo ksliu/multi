@@ -13,10 +13,9 @@ class MultiAlign
 public:
     MultiAlign(protein *, int);
 
-    //    void findMissingMotif();
-
     void run();
     void outputAlignResult(const std::string & fn) const;
+    void genScript(const std::string &fn ="script") const;
 
 private:
     std::vector<protein *> pro;
@@ -26,8 +25,6 @@ private:
     std::vector <  SFPGenerator >  multiSFP;
 
     Dar averageSubject, centers;
-
-
 
     void moveToCenter();
     void updateAverageSubject();
@@ -43,13 +40,13 @@ private:
 
     void findMissingMotif();
 
-    bool absAviable(int index, int s, int q);
-    bool disAviable(int index, int s, int q);
+    void getRMSD(int minDepth, int &alignedSize, double &rmsd) const;
+
 
     static void ddtransform(const Dar &subject, Dar &query, const std::vector<int> &corres);
     static bool absDev(const double p[], const double q[], double err);
     static bool disDev(const double p[], const double q[], double err);
-    static bool colinear(const std::vector<int> &corres, int k1, int k2);
+    static bool colinear(const std::vector<int> &corres, int s, int q);
 };
 
 #endif // MULTIALIGN_H

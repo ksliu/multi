@@ -61,4 +61,5 @@ void test()
     MultiAlign ma(pro, N);
     ma.run();
     ma.outputAlignResult("multiAlign.txt");
+    ma.genScript();
 }

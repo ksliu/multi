@@ -145,6 +145,7 @@ void MultiAlign::fillCorresByCLE(int index)
     corres.assign(corres.size(), -1);
 
     int part = sq.size();
+    const  double absErr = 7.5;
 
     for (int i = 0; i < part; i++)
     {
@@ -153,7 +154,9 @@ void MultiAlign::fillCorresByCLE(int index)
         int wrongPoints = 0;
         for (int k = 0; k < SFPGenerator::SW; k++, s++, q++)
         {
-            if (absAviable(index, s, q))
+            if (corres[s] == -1
+                    && absDev(pro[subjectIndex]->ca[s], pro[index]->ca[q], absErr)
+                    && colinear(corres, s, q))
             {
                 corres[s] = q;
             }
@@ -175,26 +178,7 @@ void MultiAlign::tuneCorresByCLE(int index)
     corres.assign(corres.size(), -1);
 
     int part = sq.size();
-
-    //    for (int i = 0; i < part; i++)
-    //    {
-    //        int s = sq[i].ia;
-    //        int q = sq[i].ib;
-    //        int wrongPoints = 0;
-    //        for (int k = 0; k < SFPGenerator::SW; k++, s++, q++)
-    //        {
-    //            if (disAviable(index, s, q))
-    //            {
-    //                corres[s] = q ;
-    //            }
-    //            else
-    //            {
-    //                wrongPoints++;
-    //                if (wrongPoints > SFPGenerator::SW / 2)
-    //                    break;
-    //            }
-    //        }
-    //    }
+    const  double disErr = 5.0 * 5.0;
 
     for (int i = 0; i < part; i++)
     {
@@ -202,14 +186,14 @@ void MultiAlign::tuneCorresByCLE(int index)
         int q = sq[i].ib ;
         for (int k = 0; k < SFPGenerator::SW; k++, s++, q++)
         {
-            if (disAviable(index, s, q))
+            if ( corres[s] == -1
+                    && disDev(pro[subjectIndex]->ca[s], pro[index]->ca[q], disErr)
+                    && colinear(corres, s, q) )
             {
                 corres[s] = q;
             }
         }
     }
-
-    const double  disErr = 5.0 * 5.0;
 
     int i, j;
 
@@ -284,22 +268,6 @@ void MultiAlign::updateAverageSubject()
     }
 }
 
-bool MultiAlign::absAviable(int index, int s, int q)
-{
-    static const  double absErr = 7.5;
-    return
-            multiCorres[index][s] == -1
-            && absDev(pro[subjectIndex]->ca[s], pro[index]->ca[q], absErr)
-            && colinear(multiCorres[index], s, q);
-}
-bool MultiAlign::disAviable(int index, int s, int q)
-{
-    static const  double disErr = 5.0 * 5.0;
-    return
-            multiCorres[index][s] == -1
-            && disDev(pro[subjectIndex]->ca[s], pro[index]->ca[q], disErr)
-            && colinear(multiCorres[index], s, q);
-}
 bool MultiAlign::absDev(const double p[], const double q[], double err)
 {
     return (fabs(p[0] - q[0]) < err
@@ -314,18 +282,10 @@ bool MultiAlign::disDev(const double p[], const double q[], double err)
         s += (p[i] - q[i]) * (p[i] - q[i]);
     return  s < err;
 }
+
 bool MultiAlign::colinear(const vector<int> &corres, int s, int q)
 {
     int i, sublen = corres.size();
-    //    for (i = k1 + 1; i < sublen; i++)
-    //        if (corres[i] != -1 && k2 > corres[i])
-    //            return false;
-
-    //    for (i = k1 - 1; i >= 0; i--)
-    //        if (corres[i] != -1)
-    //            return k2 > corres[i];
-
-    //    return true;
     for (i=0; i<s; i++)
     {
         int p = corres[i];
@@ -438,7 +398,19 @@ void MultiAlign::outputAlignResult(const std::string & fn) const
         cout << "cannot open file " << fn << endl;
         exit(1);
     }
-    fout << "subject protein: " << subjectIndex << endl;
+    fout.setf(ios::fixed);
+    fout.precision(3);
+
+    int alignedSize[2];
+    double rmsd[2];
+
+    getRMSD(np, alignedSize[0], rmsd[0]);
+    getRMSD(int(np * 0.6), alignedSize[1], rmsd[1]);
+
+    fout << "subject protein: " << subjectIndex << endl
+         << "aligned size:" << setw(8) <<  alignedSize[0] << setw(8) << alignedSize[1] << endl
+         << "rmsd:        " << setw(8) <<rmsd[0] <<  setw(8) << rmsd[1] << endl;
+
 
     for (int j=0; j < pro[subjectIndex]->ca.len(); j++)
     {
@@ -449,11 +421,149 @@ void MultiAlign::outputAlignResult(const std::string & fn) const
 
     fout.close();
 }
+void MultiAlign::getRMSD(int minDepth, int &alignedSize, double &rmsd) const
+{
+    alignedSize = 0;
+    rmsd = 0;
+    if ( minDepth < 0 || minDepth > np)
+    {
+        cout << "minDepth ~ [0, number of protein] " << endl;
+        exit(1);
+    }
+    int nPair = 0;
+    for (int i=0; i< pro[subjectIndex]->ca.len(); i++)
+    {
+        int depth = 0;
+        for (int k=0; k < np; k++)
+        {
+            if (multiCorres[k][i] != -1)
+                depth++;
+        }
+        if (depth >= minDepth)
+        {
+            alignedSize++;
+            nPair += depth;
+            for (int k=0; k < np; k++)
+            {
+                int p = multiCorres[k][i];
+                if ( p != -1)
+                {
+                    for (int j=0; j<3; j++)
+                    {
+                        double d = pro[k]->ca[p][j] - averageSubject[i][j];
+                        rmsd += d * d;
+                    }
+                }
+            }
+        }
+    }
+    rmsd = sqrt(rmsd) / nPair;
+}
 
 void MultiAlign::findMissingMotif()
 {
     // cellRegister
+    //    class cell
+    //    {
+    //    public:
+    //        cell():depth(0) { }
+    //        int pos[3], depth;
+    //    };
+    //    class cellcmp
+    //    {
+    //        bool operator() (const cell &a, const cell &b)
+    //        {
+    //            return a.depth > b.depth;
+    //        }
+    //    };
+
+    //    double min[3] = {0}, max[3] = {0};
+
+    //    int i, j, k;
+
+    //    for (k=0; k<np; k++)
+    //    {
+    //        for (i=0; i<pro[k]->ca.len(); i++)
+    //        {
+    //            for (j=0; j<3; j++)
+    //            {
+    //                double d = pro[k]->ca[i][j];
+    //                if (d < min[j])  min[j] = d;
+    //                if (d > max[j])  max[j] = d;
+    //            }
+    //        }
+    //    }
+    //    const double cubeSize = 6.0;
+
+    //    int nSide[3];
+
+    //    for (j=0; j<3; j++)
+    //        nSide[j] =  int( (max[j] -  min[j]) / cubeSize ) + 1 ;
+
+    //    int nTotal = 1;
+    //    for (j=0; j<3; j++)
+    //        nTotal *= nSide[j];
+
+
+    //    // index = i * N_j + j + k * (N_i * N_j).
+    //    vector< cell > reg;
+    //    cell c;
+    //    for (k=0; k<np; k++)
+    //    {
+    //        for (i=0; i<pro[k]->ca.len(); i++)
+    //        {
+    //            for (j=0; j<3; j++)
+    //            {
+    //                double d = pro[k]->ca[i][j];
+    //                c.pos[j] = int ((d - min[j] ) / cubeSize);
+    //            }
+    //            ++[index];
+    //        }
+    //    }
 
 }
+void MultiAlign::genScript(const std::string &fn) const
+{
+    ofstream fout(fn.c_str());
+    if (fout.fail())
+    {
+        cout << "cannot open file: " << fn << endl;
+        exit(1);
+    }
+    fout << "load inline\n"
+            "color white\n"
+            "select all\n"
+            "wireframe .45\n";
 
+    fout.setf(ios::fixed);
+    fout.precision(3);
+
+    vector<int> atomStart;
+    int allLen = 0;
+    for (int i=0; i<np; i++)
+    {
+        atomStart.push_back(allLen);
+        allLen += pro[i]->ca.len();
+    }
+
+    for (int i=0; i < pro[subjectIndex]->ca.len(); i++)
+    {
+        for (int k=0; k<np; k++)
+        {
+            int p = multiCorres[k][i];
+            if ( p!= -1)
+            {
+                fout << "select atomno=" << setw(4) << atomStart[k] + p << endl;
+                fout << "color red\n";
+            }
+        }
+    }
+    fout << "select all\nexit\n";
+
+    for (int k=0; k<np; k++)
+    {
+        pro[k]->genFakePDB(' ', atomStart[k], fout);
+    }
+    fout.close();
+}
 
