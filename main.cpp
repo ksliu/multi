@@ -15,7 +15,7 @@ int main(int argc, char *argv[])
 {
     if (argc != 3)
     {
-        cout << "Usage:\n prog input_file output_file_prefix" << endl;
+        cout << "Usage:\n multi input_file output_file_prefix" << endl;
         exit(1);
     }
     vector< pair<string, char> > input =  getProtein(argv[1]);
