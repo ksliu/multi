@@ -66,21 +66,13 @@ void HSFBGenerator::set(const std::vector<std::string> &inStr)
     }
 
     generateRawList();
-    saveList("m1.txt");
-
     block.sort(desHSFBCmp);
-    saveList("m2.txt");
-
     removeRedundance();
-    saveList("m3.txt");
 
     if (block.begin() -> depth != np)
     {
-        cout << "error: the first block is not full." << endl;
-        exit(1);
+        cout << "Warning: the first block is not full." << endl;
     }
-//    cout << "shortest: "<< shortestIndex << endl;
-//    cout << "center: "<<  getBlockCenter(*similarBlock.begin()) << endl;
 }
 void HSFBGenerator::generateRawList()
 {

@@ -3,7 +3,6 @@ QT -= core gui
 HEADERS += \
     geometry.h \
     gencle.h \
-    corres.h \
     bioinfo.h \
     protein.h \
     pdb.h \
@@ -16,7 +15,6 @@ SOURCES += \
     main.cpp \
     geometry.cpp \
     gencle.cpp \
-    corres.cpp \
     bioinfo.cpp \
     protein.cpp \
     pdb.cpp \

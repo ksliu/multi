@@ -15,7 +15,7 @@ public:
 
     void run();
     void outputAlignResult(const std::string & fn) const;
-    void genScript(const std::string &fn ="script") const;
+    void genScript(const std::string &fn) const;
 
 private:
     std::vector<protein *> pro;

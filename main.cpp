@@ -1,3 +1,7 @@
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <vector>
 #include <string>
 #include <cstdlib>
 #include "protein.h"
@@ -5,61 +9,56 @@
 
 using namespace std;
 
-void test();
-bool RUN_TEST = true;
+vector< pair<string, char> > getProtein(const string &fn);
 
-int main(int argc, char **argv)
+int main(int argc, char *argv[])
 {
-    if (RUN_TEST)
+    if (argc != 3)
     {
-        test();
-        return 0;
-    }
-
-    if (argc < 6)
-    {
-        cout << "program -o output_file pdb_file1 pdb_file2 pdb_file3..." << endl;
+        cout << "Usage:\n prog input_file output_file_prefix" << endl;
         exit(1);
     }
-
-    string outputFile = argv[2];
-    int numPDB = argc - 3;
-
-    if (numPDB < 3)
+    vector< pair<string, char> > input =  getProtein(argv[1]);
+    int n = input.size();
+    protein *pro = new protein[n];
+    for (int i=0; i<n; i++)
     {
-        cout << "input at least 3 PDB files" << endl;
-        exit(1);
+        pro[i].loadFile(input[i].first, input[i].second);
     }
 
-    protein * pro = new protein [numPDB];
-    for (int i=0; i <numPDB; i++)
-        pro[i].loadFile(argv[i+3]);
-
-
-    MultiAlign ma (pro, numPDB);
+    MultiAlign ma(pro, n);
     ma.run();
-    ma.outputAlignResult(outputFile);
+
+    string outputPrefix = argv[2];
+    ma.outputAlignResult(outputPrefix + ".txt");
+    ma.genScript(outputPrefix + ".script");
 
     delete [] pro;
-
-    return 0;
 }
 
-void test()
+vector< pair<string, char> > getProtein (const string &fn)
 {
-    const int N = 3;
-    //    string pdbFiles[N] = {"1BAB.pdb", "1HLB.pdb", "1HLM.pdb"};
-    string pdbFiles[N] = {"1HLB.pdb", "1HLM.pdb", "1BAB.pdb"};
+    ifstream fin(fn.c_str());
 
-    protein pro[N];
-    for (int i=0; i<N; i++)
+    if (fin.fail())
     {
-        pro[i].loadFile(pdbFiles[i]);
-        //        pro[i].toXYZFile(xyzFiles[i]);
+        cout << "cannot open file : " << fn << endl;
+        exit(1);
     }
+    vector< pair<string, char> > ret;
 
-    MultiAlign ma(pro, N);
-    ma.run();
-    ma.outputAlignResult("multiAlign.txt");
-    ma.genScript();
+    string line;
+    while (getline (fin, line))
+    {
+        stringstream ss (line);
+        string file;
+        char chain;
+        ss >> file >> chain;
+        ret.push_back(pair<string, char>(file, chain));
+
+        cout << file << chain << endl;
+
+    }
+    fin.close();
+    return ret;
 }

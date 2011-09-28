@@ -22,6 +22,7 @@ public:
     SFPGenerator();
     SFPGenerator(const std::string &a, const std::string &b);
     void set(const std::string &a, const std::string &b);
+    void saveList(const std::string &filename) const;
 
     const std::vector<SFP> & getCandidate() const;
     static const int SW = 8, SC = 100;
@@ -29,8 +30,6 @@ public:
 private:
     void generateRawList(int width, int lower_socre);
     void removeRedundance(int);
-    void saveList(const std::string &filename) const;
-
 
     std::string pa, pb;
     std::vector<SFP> sq;

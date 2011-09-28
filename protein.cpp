@@ -12,15 +12,16 @@ protein::protein()
 
 }
 
-protein::protein(const std::string &fn)
+protein::protein(const std::string &fn, char c)
 {
-    loadFile(fn);
+    loadFile(fn, c);
 }
 
-void protein::loadFile(const std::string & fn)
+void protein::loadFile(const std::string & fn, char c)
 {
     id = fn;
-    PDB pdb(fn);
+    chain = c;
+    PDB pdb(fn, c);
     pdb.getAA(aa);
     pdb.getCa(ca);
     cl = bio::ca2cl(ca.ptr(), ca.len());
